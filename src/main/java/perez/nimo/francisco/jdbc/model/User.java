@@ -4,16 +4,24 @@ import java.util.HashMap;
 import java.util.Map;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
+@NoArgsConstructor
 public class User {
     private int userId;
     private String name;
     private String email;
 
     public static final Map<String, String> FIELD_MAPPINGS = new HashMap<>();
+
+    public User(int userId, String name, String email) {
+        this.userId = userId;
+        this.name = name;
+        this.email = email;
+    }
 
     public User(String name, String email) {
         this.name = name;

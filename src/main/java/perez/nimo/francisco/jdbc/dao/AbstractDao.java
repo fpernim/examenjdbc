@@ -23,37 +23,10 @@ public abstract class AbstractDao<T, ID> {
         this.primaryKeyField = primaryKeyField;
     }
 
-    private String getDatabaseColumnName(String fieldName) {
-        return getDatabaseFieldName(fieldName);
-    }
-
     public void insert(T entity) throws SQLException {
-        StringBuilder sql = new StringBuilder("INSERT INTO ");
-        sql.append(getDatabaseColumnName(entityClass.getSimpleName())).append(" (");
-        Field[] fields = entityClass.getDeclaredFields();
-        for (Field field : fields) {
-            if (Modifier.isStatic(field.getModifiers()))
-                continue; // Skip static fields
-            sql.append(getDatabaseColumnName(field.getName())).append(", ");
-        }
-        sql.setLength(sql.length() - 2);
-        sql.append(") VALUES (");
-        for (int i = 0; i < fields.length; i++) {
-            if (Modifier.isStatic(fields[i].getModifiers()))
-                continue; // Skip static fields
-            sql.append("?, ");
-        }
-        sql.setLength(sql.length() - 2);
-        sql.append(")");
-
-        try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
-            int index = 1;
-            for (Field field : fields) {
-                if (Modifier.isStatic(field.getModifiers()))
-                    continue; // Skip static fields
-                field.setAccessible(true);
-                stmt.setObject(index++, field.get(entity));
-            }
+        String sql = buildInsertSql();
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            setPreparedStatementParameters(stmt, entity, entityClass.getDeclaredFields(), null);
             stmt.executeUpdate();
         } catch (IllegalAccessException e) {
             throw new SQLException("Error accessing entity fields", e);
@@ -61,34 +34,16 @@ public abstract class AbstractDao<T, ID> {
     }
 
     public void update(T entity) throws SQLException {
-        StringBuilder sql = new StringBuilder("UPDATE ");
-        sql.append(getDatabaseFieldName(entityClass.getSimpleName())).append(" SET ");
-        Field[] fields = entityClass.getDeclaredFields();
+        String sql = buildUpdateSql();
         Field idField = null;
-        for (Field field : fields) {
-            if (Modifier.isStatic(field.getModifiers()))
-                continue; // Skip static fields
+        for (Field field : entityClass.getDeclaredFields()) {
             if (field.getName().equalsIgnoreCase(primaryKeyField)) {
                 idField = field;
-                continue;
+                break;
             }
-            sql.append(getDatabaseFieldName(field.getName())).append(" = ?, ");
         }
-        sql.setLength(sql.length() - 2);
-        sql.append(" WHERE ").append(getDatabaseFieldName(primaryKeyField)).append(" = ?");
-
-        try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
-            int index = 1;
-            for (Field field : fields) {
-                if (Modifier.isStatic(field.getModifiers()))
-                    continue; // Skip static fields
-                if (field.equals(idField))
-                    continue;
-                field.setAccessible(true);
-                stmt.setObject(index++, field.get(entity));
-            }
-            idField.setAccessible(true);
-            stmt.setObject(index, idField.get(entity));
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            setPreparedStatementParameters(stmt, entity, entityClass.getDeclaredFields(), idField);
             stmt.executeUpdate();
         } catch (IllegalAccessException e) {
             throw new SQLException("Error accessing entity fields", e);
@@ -127,12 +82,61 @@ public abstract class AbstractDao<T, ID> {
         return entities;
     }
 
+    private String buildInsertSql() {
+        StringBuilder sql = new StringBuilder("INSERT INTO ");
+        sql.append(getDatabaseFieldName(entityClass.getSimpleName())).append(" (");
+        Field[] fields = entityClass.getDeclaredFields();
+        for (Field field : fields) {
+            if (Modifier.isStatic(field.getModifiers()))
+                continue;
+            sql.append(getDatabaseFieldName(field.getName())).append(", ");
+        }
+        sql.setLength(sql.length() - 2);
+        sql.append(") VALUES (");
+        for (int i = 0; i < fields.length; i++) {
+            if (Modifier.isStatic(fields[i].getModifiers()))
+                continue;
+            sql.append("?, ");
+        }
+        sql.setLength(sql.length() - 2);
+        sql.append(")");
+        return sql.toString();
+    }
+
+    private String buildUpdateSql() {
+        StringBuilder sql = new StringBuilder("UPDATE ");
+        sql.append(getDatabaseFieldName(entityClass.getSimpleName())).append(" SET ");
+        Field[] fields = entityClass.getDeclaredFields();
+        for (Field field : fields) {
+            if (Modifier.isStatic(field.getModifiers()) || field.getName().equalsIgnoreCase(primaryKeyField))
+                continue;
+            sql.append(getDatabaseFieldName(field.getName())).append(" = ?, ");
+        }
+        sql.setLength(sql.length() - 2);
+        sql.append(" WHERE ").append(getDatabaseFieldName(primaryKeyField)).append(" = ?");
+        return sql.toString();
+    }
+
+    private void setPreparedStatementParameters(PreparedStatement stmt, T entity, Field[] fields, Field idField) throws SQLException, IllegalAccessException {
+        int index = 1;
+        for (Field field : fields) {
+            if (Modifier.isStatic(field.getModifiers()) || field.equals(idField))
+                continue;
+            field.setAccessible(true);
+            stmt.setObject(index++, field.get(entity));
+        }
+        if (idField != null) {
+            idField.setAccessible(true);
+            stmt.setObject(index, idField.get(entity));
+        }
+    }
+
     private T mapResultSetToEntity(ResultSet rs) throws SQLException {
         try {
             T entity = entityClass.getDeclaredConstructor().newInstance();
             for (Field field : entityClass.getDeclaredFields()) {
                 if (Modifier.isStatic(field.getModifiers()))
-                    continue; // Skip static fields
+                    continue;
                 field.setAccessible(true);
                 field.set(entity, rs.getObject(getDatabaseFieldName(field.getName())));
             }
