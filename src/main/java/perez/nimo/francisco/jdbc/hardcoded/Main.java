@@ -1,9 +1,9 @@
-package perez.nimo.francisco.jdbc;
+package perez.nimo.francisco.jdbc.hardcoded;
 
 import java.sql.SQLException;
 
-import perez.nimo.francisco.jdbc.dao.UserDao;
-import perez.nimo.francisco.jdbc.model.User;
+import perez.nimo.francisco.jdbc.hardcoded.dao.UserDao;
+import perez.nimo.francisco.jdbc.hardcoded.model.User;
 
 public class Main {
     public static void main(String[] args) {
