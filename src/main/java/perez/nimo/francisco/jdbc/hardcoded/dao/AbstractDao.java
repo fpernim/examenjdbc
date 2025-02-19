@@ -118,7 +118,7 @@ public abstract class AbstractDao<T, ID> {
         }
     }
 
-    private String getDatabaseFieldName(String fieldName) {
+    public String getDatabaseFieldName(String fieldName) {
         try {
             return (String) entityClass.getMethod("getDatabaseFieldName", String.class).invoke(null, fieldName);
         } catch (Exception e) {
