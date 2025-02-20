@@ -1,10 +1,6 @@
 package perez.nimo.francisco.jdbc.hardcoded.dao;
 
-import java.lang.reflect.Field;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 
 import perez.nimo.francisco.jdbc.hardcoded.model.Department;
@@ -20,24 +16,7 @@ public class DepartmentDao extends AbstractDao<Department, Integer> {
         super(Department.class, "departmentId", INSERT_SQL, UPDATE_SQL, DELETE_SQL, GET_BY_ID_SQL, "department");
     }
 
-    public List<Employee> getEmployees(int departmentId) throws SQLException {
-        List<Employee> employees = new ArrayList<>();
-        String sql = "SELECT * FROM " + getDatabaseFieldName("Employee") + " WHERE " + getDatabaseFieldName("departamentoId") + " = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, departmentId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    Employee employee = new Employee();
-                    for (Field field : Employee.class.getDeclaredFields()) {
-                        field.setAccessible(true);
-                        field.set(employee, rs.getObject(getDatabaseFieldName(field.getName())));
-                    }
-                    employees.add(employee);
-                }
-            } catch (IllegalAccessException e) {
-                throw new SQLException("Error accessing entity fields", e);
-            }
-        }
-        return employees;
+    public List<Employee> getEmployees(Department department) throws SQLException {
+        return getOneToMany("employee", "department_id", department.getDepartmentId(), Employee.class, "employeeId");
     }
 }

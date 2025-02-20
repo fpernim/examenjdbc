@@ -1,9 +1,9 @@
 package perez.nimo.francisco.jdbc.hardcoded.model;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -11,10 +11,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class Department {
     private int departmentId;
     private String name;
-    private List<Employee> employees; // Relación uno a muchos
 
     public static final Map<String, String> FIELD_MAPPINGS = new HashMap<>();
 

@@ -1,5 +1,8 @@
 package perez.nimo.francisco.jdbc.hardcoded.dao;
 
+import java.sql.SQLException;
+
+import perez.nimo.francisco.jdbc.hardcoded.model.Employee;
 import perez.nimo.francisco.jdbc.hardcoded.model.Task;
 
 public class TaskDao extends AbstractDao<Task, Integer> {
@@ -10,5 +13,9 @@ public class TaskDao extends AbstractDao<Task, Integer> {
 
     public TaskDao() {
         super(Task.class, "taskId", INSERT_SQL, UPDATE_SQL, DELETE_SQL, GET_BY_ID_SQL, "task");
+    }
+
+    public Employee getEmployee(Task task) throws SQLException {
+        return getOneToOne("employee", "task_id", task.getTaskId(), Employee.class, "employeeId");
     }
 }

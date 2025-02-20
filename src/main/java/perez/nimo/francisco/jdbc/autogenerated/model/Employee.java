@@ -10,28 +10,19 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class User {
-    private int userId;
-    private String name;
-    private String email;
+public class Employee {
+    private int employeeId;
+    private String dni;
 
     public static final Map<String, String> FIELD_MAPPINGS = new HashMap<>();
 
-    public User(int userId, String name, String email) {
-        this.userId = userId;
-        this.name = name;
-        this.email = email;
-    }
-
-    public User(String name, String email) {
-        this.name = name;
-        this.email = email;
+    public Employee(String dni) {
+        this.dni = dni;
     }
 
     static {
-        FIELD_MAPPINGS.put("userId", "user_id");
-        FIELD_MAPPINGS.put("name", "name");
-        FIELD_MAPPINGS.put("email", "email");
+        FIELD_MAPPINGS.put("employeeId", "employee_id");
+        FIELD_MAPPINGS.put("dni", "dni");
     }
 
     public static String getDatabaseFieldName(String javaFieldName) {

@@ -1,5 +1,9 @@
 package perez.nimo.francisco.jdbc.hardcoded.dao;
 
+import java.sql.SQLException;
+import java.util.List;
+
+import perez.nimo.francisco.jdbc.hardcoded.model.Employee;
 import perez.nimo.francisco.jdbc.hardcoded.model.Project;
 
 public class ProjectDao extends AbstractDao<Project, Integer> {
@@ -10,5 +14,9 @@ public class ProjectDao extends AbstractDao<Project, Integer> {
 
     public ProjectDao() {
         super(Project.class, "projectId", INSERT_SQL, UPDATE_SQL, DELETE_SQL, GET_BY_ID_SQL, "project");
+    }
+
+    public List<Employee> getEmployees(Project project) throws SQLException {
+        return getManyToMany("project_has_employee", "project_id", "employee_id", project.getProjectId(), Employee.class, "employeeId");
     }
 }

@@ -110,7 +110,7 @@ public abstract class AbstractDao<T, ID> {
                 if (Modifier.isStatic(field.getModifiers()))
                     continue;
                 field.setAccessible(true);
-                field.set(entity, rs.getObject(getDatabaseFieldName(field.getName())));
+                field.set(entity, rs.getObject(getDatabaseFieldName(field.getName(), entityClass)));
             }
             return entity;
         } catch (Exception e) {
@@ -118,11 +118,123 @@ public abstract class AbstractDao<T, ID> {
         }
     }
 
-    public String getDatabaseFieldName(String fieldName) {
+    public String getDatabaseFieldName(String fieldName, Class<?> clazz) {
         try {
-            return (String) entityClass.getMethod("getDatabaseFieldName", String.class).invoke(null, fieldName);
+            return (String) clazz.getMethod("getDatabaseFieldName", String.class).invoke(null, fieldName);
         } catch (Exception e) {
             return fieldName; // Fallback to default if not found
+        }
+    }
+
+    public void addOneToOne(String tableName, String foreignKey, Object id, Object foreignId) throws SQLException {
+        String sql = "UPDATE " + tableName + " SET " + foreignKey + " = ? WHERE " + getDatabaseFieldName(primaryKeyField, entityClass) + " = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setObject(1, foreignId);
+            stmt.setObject(2, id);
+            stmt.executeUpdate();
+        }
+    }
+
+    public void removeOneToOne(String tableName, String foreignKey, Object id) throws SQLException {
+        String sql = "UPDATE " + tableName + " SET " + foreignKey + " = NULL WHERE " + getDatabaseFieldName(primaryKeyField, entityClass) + " = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setObject(1, id);
+            stmt.executeUpdate();
+        }
+    }
+
+    public void addOneToMany(String tableName, String foreignKey, Object id, Object foreignId) throws SQLException {
+        String sql = "UPDATE " + tableName + " SET " + foreignKey + " = ? WHERE " + getDatabaseFieldName(primaryKeyField, entityClass) + " = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setObject(1, foreignId);
+            stmt.setObject(2, id);
+            stmt.executeUpdate();
+        }
+    }
+
+    public void removeOneToMany(String tableName, String foreignKey, Object id) throws SQLException {
+        String sql = "UPDATE " + tableName + " SET " + foreignKey + " = NULL WHERE " + getDatabaseFieldName(primaryKeyField, entityClass) + " = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setObject(1, id);
+            stmt.executeUpdate();
+        }
+    }
+
+    public void addManyToMany(String joinTable, String foreignKey1, String foreignKey2, Object id1, Object id2) throws SQLException {
+        String sql = "INSERT INTO " + joinTable + " (" + foreignKey1 + ", " + foreignKey2 + ") VALUES (?, ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setObject(1, id1);
+            stmt.setObject(2, id2);
+            stmt.executeUpdate();
+        }
+    }
+
+    public void removeManyToMany(String joinTable, String foreignKey1, String foreignKey2, Object id1, Object id2) throws SQLException {
+        String sql = "DELETE FROM " + joinTable + " WHERE " + foreignKey1 + " = ? AND " + foreignKey2 + " = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setObject(1, id1);
+            stmt.setObject(2, id2);
+            stmt.executeUpdate();
+        }
+    }
+
+    public <R> R getOneToOne(String tableName, String foreignKey, Object id, Class<R> relatedClass, String relatedPrimaryKeyField) throws SQLException {
+        String sql = "SELECT r.* FROM " + relatedClass.getSimpleName().toLowerCase() + " r JOIN " + tableName + " t ON t." + foreignKey + " = r."
+                + getDatabaseFieldName(relatedPrimaryKeyField, relatedClass) + " WHERE t." + getDatabaseFieldName(primaryKeyField, entityClass) + " = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setObject(1, id);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToEntity(rs, relatedClass);
+                }
+            }
+        }
+        return null;
+    }
+
+    public <R> List<R> getOneToMany(String tableName, String foreignKey, Object id, Class<R> relatedClass, String relatedPrimaryKeyField) throws SQLException {
+        List<R> relatedEntities = new ArrayList<>();
+        String sql = "SELECT r.* FROM " + relatedClass.getSimpleName().toLowerCase() + " r JOIN " + tableName + " t ON t." + foreignKey + " = r."
+                + getDatabaseFieldName(relatedPrimaryKeyField, relatedClass) + " WHERE t." + getDatabaseFieldName(primaryKeyField, entityClass) + " = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setObject(1, id);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    relatedEntities.add(mapResultSetToEntity(rs, relatedClass));
+                }
+            }
+        }
+        return relatedEntities;
+    }
+
+    public <R> List<R> getManyToMany(String joinTable, String foreignKey1, String foreignKey2, Object id, Class<R> relatedClass, String relatedPrimaryKeyField)
+            throws SQLException {
+        List<R> relatedEntities = new ArrayList<>();
+        String sql = "SELECT r.* FROM " + relatedClass.getSimpleName().toLowerCase() + " r JOIN " + joinTable + " j ON r."
+                + getDatabaseFieldName(relatedPrimaryKeyField, relatedClass) + " = j." + foreignKey2 + " WHERE j." + foreignKey1 + " = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setObject(1, id);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    relatedEntities.add(mapResultSetToEntity(rs, relatedClass));
+                }
+            }
+        }
+        return relatedEntities;
+    }
+
+    private <R> R mapResultSetToEntity(ResultSet rs, Class<R> relatedClass) throws SQLException {
+        try {
+            R entity = relatedClass.getDeclaredConstructor().newInstance();
+            for (Field field : relatedClass.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers()))
+                    continue;
+                field.setAccessible(true);
+                field.set(entity, rs.getObject(getDatabaseFieldName(field.getName(), relatedClass)));
+            }
+            return entity;
+        } catch (Exception e) {
+            throw new SQLException("Error mapping ResultSet to entity", e);
         }
     }
 
